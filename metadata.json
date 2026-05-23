@@ -1,0 +1,6 @@
+{
+  "name": "Skillskapes",
+  "description": "Adaptive 3-chairs office seating presence, rotational WFH coordinator, and Google Meet scheduling assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1090133378643",
+    "project_id": "skillskapes",
+    "storage_bucket": "skillskapes.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1090133378643:android:912d8e007220d07eafe8a6",
+        "android_client_info": {
+          "package_name": "com.skillskapes.attendance"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBAcRq4OCWXnR4_8Zv5LYDUm3GtTt8wqcU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
