@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
         ChatMessage::class,
         AppNotification::class
     ],
-    version = 2,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

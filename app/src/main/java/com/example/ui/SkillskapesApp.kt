@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -22,10 +23,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -50,11 +54,14 @@ fun SkillskapesApp(viewModel: SkillskapesViewModel) {
     val isInitializing by viewModel.isInitializing.collectAsStateWithLifecycle()
 
     SkillskapesTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
+        Surface(
+            color = MaterialTheme.colorScheme.background,
+            modifier = Modifier.fillMaxSize()
+        ) {
             if (isInitializing) {
                 LoadingSplash()
             } else {
-                Crossfade(targetState = currentUser, label = "ScreenTransition") { user ->
+                Crossfade(targetState = currentUser, label = "UserTransition") { user ->
                     if (user == null) {
                         WelcomeOnboardingScreen(viewModel)
                     } else {
@@ -69,11 +76,7 @@ fun SkillskapesApp(viewModel: SkillskapesViewModel) {
 @Composable
 fun LoadingSplash() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Initializing Skillskapes...", style = MaterialTheme.typography.bodyMedium)
-        }
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp)
     }
 }
 
@@ -81,44 +84,40 @@ fun LoadingSplash() {
 fun WelcomeOnboardingScreen(viewModel: SkillskapesViewModel) {
     var showAuth by remember { mutableStateOf(false) }
 
-    if (showAuth) {
-        LoginRegisterScreen(viewModel)
-    } else {
-        Box(modifier = Modifier.fillMaxSize()) {
-            AbstractModernBackground()
-
+    AnimatedContent(targetState = showAuth, label = "AuthFlow") { isAuth ->
+        if (isAuth) {
+            LoginRegisterScreen(viewModel)
+        } else {
             Column(
-                modifier = Modifier.fillMaxSize().padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxSize().padding(40.dp),
+                horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.Center
             ) {
-                Box(
-                    modifier = Modifier.size(140.dp).clip(RoundedCornerShape(32.dp)).background(Color.White.copy(alpha = 0.9f)).padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Star, null, tint = IndigoPrimary, modifier = Modifier.size(80.dp))
-                }
-                Spacer(modifier = Modifier.height(40.dp))
                 Text(
-                    "Skillskapes",
+                    "SKILLSKAPES",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Black,
-                    color = Color.White
+                    letterSpacing = (-2).sp,
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    "Harmonizing Team Dynamics",
+                    "Minimal coordination system for modern teams.",
                     style = MaterialTheme.typography.titleLarge,
-                    color = Color.White.copy(alpha = 0.8f),
-                    textAlign = TextAlign.Center
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Light,
+                    lineHeight = 28.sp
                 )
-                Spacer(modifier = Modifier.height(60.dp))
+                Spacer(modifier = Modifier.height(64.dp))
                 Button(
                     onClick = { showAuth = true },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = IndigoPrimary),
+                    shape = RoundedCornerShape(0.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
                     modifier = Modifier.fillMaxWidth().height(64.dp)
                 ) {
-                    Text("Get Started", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("GET STARTED", fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                 }
             }
         }
@@ -126,34 +125,16 @@ fun WelcomeOnboardingScreen(viewModel: SkillskapesViewModel) {
 }
 
 @Composable
-fun AbstractModernBackground() {
-    val infiniteTransition = rememberInfiniteTransition(label = "bg")
-    val radius by infiniteTransition.animateFloat(
-        initialValue = 300f,
-        targetValue = 500f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "radius"
-    )
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(IndigoPrimary, IndigoDark)
-            )
-        )
-        drawCircle(
-            color = IndigoLight.copy(alpha = 0.2f),
-            radius = radius,
-            center = Offset(size.width * 0.8f, size.height * 0.2f)
-        )
-        drawCircle(
-            color = Color.Cyan.copy(alpha = 0.1f),
-            radius = radius * 1.5f,
-            center = Offset(size.width * 0.2f, size.height * 0.9f)
-        )
+fun MonoCard(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .border(1.dp, MaterialTheme.colorScheme.outline)
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        content()
     }
 }
 
@@ -167,326 +148,263 @@ fun LoginRegisterScreen(viewModel: SkillskapesViewModel) {
     var name by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxWidth().padding(32.dp).verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.Start
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
             Text(
-                if (isSignUp) "Create Account" else "Welcome Back",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
+                if (isSignUp) "ACCOUNT" else "WELCOME",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-1).sp
             )
-            Text(
-                if (isSignUp) "Join the Skillskapes ecosystem" else "Sign in to continue your coordination",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
+            Spacer(modifier = Modifier.height(48.dp))
             
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Card(
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    if (isSignUp) {
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            label = { Text("Display Name") },
-                            leadingIcon = { Icon(Icons.Default.Person, null) },
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Email Address") },
-                        leadingIcon = { Icon(Icons.Default.Email, null) },
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Password") },
-                        leadingIcon = { Icon(Icons.Default.Lock, null) },
-                        trailingIcon = {
-                            IconButton(onClick = { showPassword = !showPassword }) {
-                                Icon(if (showPassword) Icons.Default.Info else Icons.Default.Lock, null)
-                            }
-                        },
-                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = {
-                            if (isSignUp) {
-                                viewModel.register(name, email, password, "Developer", "av_logo_1",
-                                    { Toast.makeText(context, "Registration Successful!", Toast.LENGTH_SHORT).show() },
-                                    { Toast.makeText(context, it, Toast.LENGTH_LONG).show() })
-                            } else {
-                                viewModel.login(email, password,
-                                    { Toast.makeText(context, "Success!", Toast.LENGTH_SHORT).show() },
-                                    { Toast.makeText(context, it, Toast.LENGTH_LONG).show() })
-                            }
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
-                    ) {
-                        Text(if (isSignUp) "Register" else "Login", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    }
+            Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                if (isSignUp) {
+                    MonoTextField(value = name, onValueChange = { name = it }, label = "Full Name")
+                }
+                MonoTextField(value = email, onValueChange = { email = it }, label = "Email")
+                MonoTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = "Password",
+                    isPassword = true,
+                    showPassword = showPassword,
+                    onTogglePassword = { showPassword = !showPassword }
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        if (isSignUp) {
+                            viewModel.register(name, email, password, "Developer", "av_logo_1", { }, { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() })
+                        } else {
+                            viewModel.login(email, password, { }, { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() })
+                        }
+                    },
+                    shape = RoundedCornerShape(0.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                ) {
+                    Text("CONTINUE", fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
             
-            TextButton(onClick = { isSignUp = !isSignUp }) {
+            TextButton(
+                onClick = { isSignUp = !isSignUp },
+                modifier = Modifier.padding(top = 24.dp)
+            ) {
                 Text(
-                    if (isSignUp) "Already have an account? Sign In" else "Don't have an account? Register",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
+                    if (isSignUp) "BACK TO LOGIN" else "CREATE ACCOUNT",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
-            QuickDemoPanel(onFill = { e, p -> email = e; password = p })
+            
+            Spacer(modifier = Modifier.height(40.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                DemoChip("SAM") { email = "samjoshua.skillskapes@gmail.com"; password = "password123" }
+                DemoChip("PRIYANKA") { email = "ceo@skillskapes.com"; password = "password123" }
+            }
         }
     }
 }
 
 @Composable
-fun QuickDemoPanel(onFill: (String, String) -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Demo Access", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AssistChip(onClick = { onFill("samjoshua.skillskapes@gmail.com", "password123") }, label = { Text("Sam (Admin)") })
-            AssistChip(onClick = { onFill("ceo@skillskapes.com", "password123") }, label = { Text("Priyanka (Boss)") })
-        }
+fun DemoChip(label: String, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.clickable { onClick() },
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+fun MonoTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    isPassword: Boolean = false,
+    showPassword: Boolean = false,
+    onTogglePassword: (() -> Unit)? = null
+) {
+    Column {
+        Text(
+            label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+            letterSpacing = 1.sp
+        )
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                cursorColor = MaterialTheme.colorScheme.primary
+            ),
+            visualTransformation = if (isPassword && !showPassword) PasswordVisualTransformation() else VisualTransformation.None,
+            trailingIcon = if (isPassword) {
+                { IconButton(onClick = { onTogglePassword?.invoke() }) {
+                    Icon(if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
+                } }
+            } else null
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppWorkspace(viewModel: SkillskapesViewModel, user: Employee) {
-    val isBoss = user.role == "Boss"
     val isSuper = user.isSuperAdmin
-    var currentTab by remember { mutableStateOf(if (isBoss) "home" else "portal") }
+    val isBoss = user.role == "Boss"
+    var currentTab by remember { mutableStateOf(if (isBoss) "analytics" else if (isSuper) "home" else "portal") }
     var selectedChatUserId by remember { mutableStateOf<String?>(null) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     
     val activeEmployees by viewModel.activeEmployees.collectAsStateWithLifecycle()
-    val trackingEmployees = remember(activeEmployees) { activeEmployees.filter { it.role != "Boss" } }
     val statsMap by viewModel.employeeStatistics.collectAsStateWithLifecycle()
-    val notifications by viewModel.userNotifications.collectAsStateWithLifecycle()
-    val meetings by viewModel.meetings.collectAsStateWithLifecycle()
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val selectedRecord by viewModel.selectedDayRecord.collectAsStateWithLifecycle()
-    
-    var showMeetingDialog by remember { mutableStateOf(false) }
+
+    val tabs = remember(isSuper, isBoss) {
+        val list = mutableListOf<String>()
+        if (isSuper && !isBoss) list.add("home")
+        list.add("portal")
+        list.add("schedule")
+        list.add("chat")
+        if (isBoss) list.add("analytics")
+        if (isSuper) list.add("superadmin")
+        list
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface) {
-                Spacer(modifier = Modifier.height(20.dp))
-                Text("SKILLSKAPES", modifier = Modifier.padding(24.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-                NavigationDrawerItem(
-                    label = { Text("My Dashboard") },
-                    selected = currentTab == "portal" || currentTab == "home",
-                    onClick = { currentTab = if (isBoss) "home" else "portal"; scope.launch { drawerState.close() } },
-                    icon = { Icon(Icons.AutoMirrored.Filled.List, null) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface, drawerShape = RoundedCornerShape(0.dp)) {
+                Text(
+                    "SKILLSKAPES",
+                    modifier = Modifier.padding(32.dp),
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp
                 )
-                NavigationDrawerItem(
-                    label = { Text("Messenger") },
-                    selected = currentTab == "chat",
-                    onClick = { currentTab = "chat"; scope.launch { drawerState.close() } },
-                    icon = { Icon(Icons.AutoMirrored.Filled.Send, null) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
-                if (isSuper) {
+                tabs.forEach { tab ->
                     NavigationDrawerItem(
-                        label = { Text("Superadmin Panel") },
-                        selected = currentTab == "superadmin",
-                        onClick = { currentTab = "superadmin"; scope.launch { drawerState.close() } },
-                        icon = { Icon(Icons.Default.Settings, null) },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        label = { Text(tab.uppercase(), fontWeight = FontWeight.Bold) },
+                        selected = currentTab == tab,
+                        onClick = { currentTab = tab; scope.launch { drawerState.close() } },
+                        icon = { Icon(getIconForTab(tab), null) },
+                        shape = RoundedCornerShape(0.dp),
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurface
+                        )
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 NavigationDrawerItem(
-                    label = { Text("Logout") },
+                    label = { Text("LOGOUT", fontWeight = FontWeight.Bold) },
                     selected = false,
-                    onClick = { viewModel.logout(); scope.launch { drawerState.close() } },
-                    icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    onClick = { viewModel.logout() },
+                    shape = RoundedCornerShape(0.dp)
                 )
-                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     ) {
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text(currentTab.uppercase(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, null)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+                    title = { Text(currentTab.uppercase(), fontWeight = FontWeight.Black, letterSpacing = 2.sp, style = MaterialTheme.typography.titleMedium) },
+                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, null) } },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
                 )
             },
             bottomBar = {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                    NavigationBarItem(
-                        selected = currentTab == (if(isBoss) "home" else "portal"),
-                        onClick = { currentTab = if(isBoss) "home" else "portal" },
-                        icon = { Icon(if (isBoss) Icons.Default.DateRange else Icons.Default.Person, null) },
-                        label = { Text(if (isBoss) "Floor" else "Dashboard") }
-                    )
-                    NavigationBarItem(
-                        selected = currentTab == "chat",
-                        onClick = { currentTab = "chat" },
-                        icon = { Icon(Icons.Default.Email, null) },
-                        label = { Text("Chat") }
-                    )
-                }
+                MonoBottomNavBar(
+                    currentTab = currentTab,
+                    tabs = tabs.filter { it != "superadmin" },
+                    onTabSelect = { currentTab = it }
+                )
             }
         ) { padding ->
             Box(modifier = Modifier.padding(padding).fillMaxSize()) {
                 when (currentTab) {
-                    "portal" -> EmployeePortalView(viewModel, user, statsMap, notifications)
-                    "home" -> BossFloorDashboard(viewModel, selectedRecord, selectedDate, showMeetingDialog, { showMeetingDialog = true }, meetings)
+                    "portal" -> EmployeePortalView(user, statsMap)
+                    "home" -> BossFloorDashboard(viewModel, selectedRecord, selectedDate, activeEmployees, isSuper)
+                    "schedule" -> WeeklyScheduleView(viewModel)
                     "chat" -> ChatCoordinator(viewModel, user, activeEmployees, selectedChatUserId) { selectedChatUserId = it }
-                    "superadmin" -> SuperAdminView(viewModel, user, activeEmployees)
-                    "profile" -> ProfileView(viewModel, user, trackingEmployees)
+                    "superadmin" -> SuperAdminView(viewModel, activeEmployees)
+                    "analytics" -> AnalyticsDashboard(activeEmployees, statsMap, viewModel)
                 }
             }
         }
     }
 }
 
+fun getIconForTab(tab: String): ImageVector = when(tab) {
+    "home" -> Icons.Default.GridView
+    "portal" -> Icons.Default.AccountCircle
+    "schedule" -> Icons.Default.DateRange
+    "chat" -> Icons.Default.ChatBubbleOutline
+    "superadmin" -> Icons.Default.Security
+    "analytics" -> Icons.Default.BarChart
+    else -> Icons.Default.Star
+}
+
 @Composable
-fun EmployeePortalView(viewModel: SkillskapesViewModel, user: Employee, statsMap: Map<String, EmployeeStats>, notifications: List<AppNotification>) {
-    val stats = statsMap[user.id] ?: EmployeeStats(0, 0, 0)
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+fun MonoBottomNavBar(currentTab: String, tabs: List<String>, onTabSelect: (String) -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
-        item {
-            Card(
-                shape = RoundedCornerShape(32.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(user.name.take(1), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Welcome back,", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
-                            Text(user.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Text("Productivity Pulse", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        }
-
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricPill("Office", "${stats.inOfficeDays}", StateInOffice, Modifier.weight(1f))
-                MetricPill("WFH", "${stats.wfhDays}", StateWFH, Modifier.weight(1f))
-                MetricPill("Away", "${stats.absentDays}", StateAbsent, Modifier.weight(1f))
-            }
-        }
-
-        item {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+        Row(
+            modifier = Modifier.fillMaxWidth().height(72.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEach { tab ->
+                val isSelected = currentTab == tab
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { onTabSelect(tab) }
+                        .padding(top = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column {
-                        Text("Attendance Rate", style = MaterialTheme.typography.labelLarge)
-                        Text("Past 30 days", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                    }
-                    Text("${stats.attendanceRate.toInt()}%", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        }
-
-        item {
-            Text("Upcoming Seating", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        }
-
-        items(7) { i ->
-            val calendar = Calendar.getInstance()
-            calendar.add(Calendar.DAY_OF_YEAR, i)
-            val dateStr = SimpleDateFormat("dd/MM/yyyy", Locale.US).format(calendar.time)
-            val dayName = SimpleDateFormat("EEEE", Locale.US).format(calendar.time)
-            val isSunday = calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
-
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.05f))
-            ) {
-                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        getIconForTab(tab),
+                        null,
+                        tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSunday) StateAbsent.copy(alpha = 0.1f) else MaterialTheme.colorScheme.secondaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(dayName.take(3).uppercase(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = if (isSunday) StateAbsent else MaterialTheme.colorScheme.onSecondaryContainer)
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(dateStr, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                        Text(if (isSunday) "Official Holiday" else "Assigned Work Node", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSunday) Color.Transparent else StateWFH.copy(alpha = 0.15f))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(if (isSunday) "🏖️" else "🏡 WFH", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = if (isSunday) Color.Unspecified else StateWFH)
-                    }
+                            .size(if (isSelected) 4.dp else 0.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
                 }
             }
         }
@@ -494,93 +412,242 @@ fun EmployeePortalView(viewModel: SkillskapesViewModel, user: Employee, statsMap
 }
 
 @Composable
-fun BossFloorDashboard(viewModel: SkillskapesViewModel, record: AttendanceRecord?, date: String, show: Boolean, onReq: () -> Unit, meetings: List<Meeting>) {
-    val activeEmployees by viewModel.activeEmployees.collectAsStateWithLifecycle()
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
+fun EmployeePortalView(user: Employee, statsMap: Map<String, EmployeeStats>) {
+    val stats = statsMap[user.id] ?: EmployeeStats(0, 0, 0)
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(32.dp), verticalArrangement = Arrangement.spacedBy(40.dp)) {
         item {
             Column {
-                Text("Office Layout", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-                Text(date, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text("HELLO,", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text(user.name.uppercase(), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
             }
         }
-
         item {
-            Card(
-                shape = RoundedCornerShape(32.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("ACTIVE NODES", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), letterSpacing = 2.sp)
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        SeatCard("Node 01", record?.p1, Modifier.weight(1f), activeEmployees) { name -> 
-                            viewModel.updateSeating(name, record?.p2, record?.p3) 
-                        }
-                        SeatCard("Node 02", record?.p2, Modifier.weight(1f), activeEmployees) { name -> 
-                            viewModel.updateSeating(record?.p1, name, record?.p3) 
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    SeatCard("Creative Node", record?.p3, Modifier.fillMaxWidth(0.6f), activeEmployees) { name -> 
-                        viewModel.updateSeating(record?.p1, record?.p2, name) 
-                    }
-                }
-            }
-        }
-
-        item {
-            Text("System Feed", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        }
-
-        if (meetings.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("No active system alerts", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        } else {
-            items(meetings) { meeting ->
-                ListItem(
-                    headlineContent = { Text(meeting.title, fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text("Scheduled by ${meeting.createdBy}") },
-                    trailingContent = { Text(meeting.time, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                MonoMetric("OFFICE", "${stats.inOfficeDays}", Modifier.weight(1f))
+                MonoMetric("WFH", "${stats.wfhDays}", Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-fun SeatCard(label: String, person: String?, modifier: Modifier, employees: List<Employee>, onAssign: (String?) -> Unit) {
-    var showMenu by remember { mutableStateOf(false) }
-    Card(
-        modifier = modifier.height(120.dp).clickable { showMenu = true },
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = if (person == null) MaterialTheme.colorScheme.surfaceVariant else IndigoPrimary, contentColor = if (person == null) MaterialTheme.colorScheme.onSurfaceVariant else Color.White)
-    ) {
-        Box(modifier = Modifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(person ?: "Vacant", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+fun MonoMetric(label: String, value: String, modifier: Modifier) {
+    Column(modifier = modifier) {
+        Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = Color.Gray)
+        Text(value, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Black)
+        Box(modifier = Modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.primary))
+    }
+}
+
+@Composable
+fun BossFloorDashboard(viewModel: SkillskapesViewModel, record: AttendanceRecord?, date: String, employees: List<Employee>, isSuper: Boolean) {
+    var showAbsentDialog by remember { mutableStateOf(false) }
+
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(32.dp)) {
+        item {
+            Column {
+                Text("FLOOR PLAN", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                Text(date, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color.Gray)
             }
-            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                DropdownMenuItem(text = { Text("Vacant") }, onClick = { onAssign(null); showMenu = false })
-                employees.forEach { emp ->
-                    DropdownMenuItem(text = { Text(emp.name) }, onClick = { onAssign(emp.name); showMenu = false })
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                SeatMonoNode("01", record?.p1, Modifier.weight(1f), employees, isSuper) { viewModel.updateSeating(date, it, record?.p2, record?.p3) }
+                SeatMonoNode("02", record?.p2, Modifier.weight(1f), employees, isSuper) { viewModel.updateSeating(date, record?.p1, it, record?.p3) }
+                SeatMonoNode("CR", record?.p3, Modifier.weight(1f), employees, isSuper) { viewModel.updateSeating(date, record?.p1, record?.p2, it) }
+            }
+        }
+        if (isSuper) {
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clickable { showAbsentDialog = true },
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column {
+                            Text("ABSENTEES", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = Color.Gray)
+                            Text(record?.absent ?: "NONE", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        Icon(Icons.Default.Add, null)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAbsentDialog) {
+        var absentText by remember { mutableStateOf(record?.absent ?: "") }
+        AlertDialog(
+            onDismissRequest = { showAbsentDialog = false },
+            shape = RoundedCornerShape(0.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("MARK ABSENT", fontWeight = FontWeight.Black) },
+            text = {
+                OutlinedTextField(
+                    value = absentText, onValueChange = { absentText = it },
+                    label = { Text("Names") }, modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(0.dp)
+                )
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.updateSeating(date, record?.p1, record?.p2, record?.p3, absentText); showAbsentDialog = false }, shape = RoundedCornerShape(0.dp)) {
+                    Text("SAVE")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun SeatMonoNode(label: String, person: String?, modifier: Modifier, employees: List<Employee>, isSuper: Boolean, onAssign: (String?) -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .aspectRatio(1f)
+                .border(2.dp, if (person != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
+                .clickable(enabled = isSuper) { showMenu = true },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(label, fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge)
+            if (isSuper) {
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(text = { Text("VACANT") }, onClick = { onAssign(null); showMenu = false })
+                    employees.forEach { emp ->
+                        DropdownMenuItem(text = { Text(emp.name) }, onClick = { onAssign(emp.name); showMenu = false })
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(person ?: "VACANT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+fun WeeklyScheduleView(viewModel: SkillskapesViewModel) {
+    val timetable by viewModel.allAttendanceRecords.collectAsStateWithLifecycle()
+    val user by viewModel.currentUser.collectAsStateWithLifecycle()
+    val employees by viewModel.activeEmployees.collectAsStateWithLifecycle()
+    val isSuper = user?.isSuperAdmin == true
+    var searchQuery by remember { mutableStateOf("") }
+
+    val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.US) }
+    val filteredTimetable = remember(timetable, searchQuery) {
+        timetable.filter { record ->
+            searchQuery.isBlank() || 
+            record.date.contains(searchQuery) || 
+            record.dayOfWeek.contains(searchQuery, ignoreCase = true) ||
+            record.p1?.contains(searchQuery, ignoreCase = true) == true ||
+            record.p2?.contains(searchQuery, ignoreCase = true) == true ||
+            record.p3?.contains(searchQuery, ignoreCase = true) == true ||
+            record.absent?.contains(searchQuery, ignoreCase = true) == true
+        }.sortedByDescending { 
+            try { sdf.parse(it.date)?.time ?: 0L } catch(e: Exception) { 0L }
+        }
+    }
+
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        item { 
+            Text("TIMETABLE", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black, letterSpacing = (-1).sp)
+            Spacer(modifier = Modifier.height(24.dp))
+            MonoSearchField(value = searchQuery, onValueChange = { searchQuery = it })
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+        
+        items(filteredTimetable) { record ->
+            MonoScheduleItem(record, employees, isSuper, viewModel)
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)))
+        }
+    }
+}
+
+@Composable
+fun MonoSearchField(value: String, onValueChange: (String) -> Unit) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text("SEARCH...", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+        modifier = Modifier.fillMaxWidth(),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent
+        ),
+        shape = RoundedCornerShape(0.dp)
+    )
+}
+
+@Composable
+fun MonoScheduleItem(record: AttendanceRecord, employees: List<Employee>, isSuper: Boolean, viewModel: SkillskapesViewModel) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Text(record.date, fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge)
+                Text(record.dayOfWeek.uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color.Gray)
+            }
+            if (record.dayOfWeek == "Sunday") {
+                Text("HOLIDAY", fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelSmall)
+            } else if (isSuper) {
+                IconButton(onClick = { viewModel.selectDate(record.date) }) {
+                    Icon(Icons.Default.MoreVert, null)
+                }
+            }
+        }
+        if (record.dayOfWeek != "Sunday") {
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MonoSeatingPill(record.p1, "01", record.date, employees, isSuper, viewModel)
+                MonoSeatingPill(record.p2, "02", record.date, employees, isSuper, viewModel)
+                MonoSeatingPill(record.p3, "CR", record.date, employees, isSuper, viewModel)
+            }
+            if (!record.absent.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("ABSENT: ${record.absent.uppercase()}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = Color.Gray)
+            }
+        }
+    }
+}
+
+@Composable
+fun MonoSeatingPill(name: String?, node: String, date: String, employees: List<Employee>, isSuper: Boolean, viewModel: SkillskapesViewModel) {
+    var showMenu by remember { mutableStateOf(false) }
+    Surface(
+        modifier = Modifier.clickable(enabled = isSuper) { showMenu = true },
+        color = if (name != null) MaterialTheme.colorScheme.primary else Color.Transparent,
+        border = if (name == null) BorderStroke(1.dp, MaterialTheme.colorScheme.outline) else null
+    ) {
+        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(node, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = if (name != null) MaterialTheme.colorScheme.onPrimary else Color.Gray)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(name?.uppercase() ?: "VACANT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = if (name != null) MaterialTheme.colorScheme.onPrimary else Color.Gray)
+            
+            if (isSuper) {
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(text = { Text("VACANT") }, onClick = { 
+                        viewModel.allAttendanceRecords.value.find { it.date == date }?.let { rec ->
+                            when(node) {
+                                "01" -> viewModel.updateSeating(date, null, rec.p2, rec.p3)
+                                "02" -> viewModel.updateSeating(date, rec.p1, null, rec.p3)
+                                "CR" -> viewModel.updateSeating(date, rec.p1, rec.p2, null)
+                            }
+                        }
+                        showMenu = false 
+                    })
+                    employees.forEach { emp ->
+                        DropdownMenuItem(text = { Text(emp.name) }, onClick = { 
+                            viewModel.allAttendanceRecords.value.find { it.date == date }?.let { rec ->
+                                when(node) {
+                                    "01" -> viewModel.updateSeating(date, emp.name, rec.p2, rec.p3)
+                                    "02" -> viewModel.updateSeating(date, rec.p1, emp.name, rec.p3)
+                                    "CR" -> viewModel.updateSeating(date, rec.p1, rec.p2, emp.name)
+                                }
+                            }
+                            showMenu = false 
+                        })
+                    }
                 }
             }
         }
@@ -589,36 +656,38 @@ fun SeatCard(label: String, person: String?, modifier: Modifier, employees: List
 
 @Composable
 fun ChatCoordinator(viewModel: SkillskapesViewModel, currentUser: Employee, employees: List<Employee>, selectedUserId: String?, onUserSelected: (String?) -> Unit) {
-    if (selectedUserId == null) {
-        ChatListView(employees, currentUser, onUserSelected)
-    } else {
+    if (selectedUserId == null) ChatListView(employees, currentUser, onUserSelected)
+    else {
         val target = employees.find { it.id == selectedUserId }
-        if (target != null) {
-            ChatDetailView(viewModel, currentUser, target) { onUserSelected(null) }
-        } else {
-            onUserSelected(null)
-        }
+        if (target != null) ChatDetailView(viewModel, currentUser, target) { onUserSelected(null) }
     }
 }
 
 @Composable
 fun ChatListView(employees: List<Employee>, currentUser: Employee, onSelect: (String) -> Unit) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        item {
-            Text("Messenger", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp)) {
+        item { 
+            Text("MESSAGES", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black, letterSpacing = (-1).sp)
+            Spacer(modifier = Modifier.height(32.dp))
         }
         items(employees.filter { it.id != currentUser.id }) { emp ->
-            ListItem(
-                headlineContent = { Text(emp.name, fontWeight = FontWeight.Bold) },
-                supportingContent = { Text("Active in ${emp.role}") },
-                leadingContent = {
-                    Box(modifier = Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                        Text(emp.name.take(1), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    }
-                },
-                modifier = Modifier.clickable { onSelect(emp.id) }
-            )
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelect(emp.id) }
+                    .padding(vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                    Text(emp.name.take(1).uppercase(), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
+                }
+                Spacer(modifier = Modifier.width(20.dp))
+                Column {
+                    Text(emp.name.uppercase(), fontWeight = FontWeight.Black, style = MaterialTheme.typography.bodyLarge)
+                    Text(emp.role.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                }
+            }
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)))
         }
     }
 }
@@ -629,50 +698,68 @@ fun ChatDetailView(viewModel: SkillskapesViewModel, currentUser: Employee, targe
     val messages by viewModel.chatMessages.collectAsStateWithLifecycle()
     val chatMessages = messages.filter { (it.senderId == currentUser.id && it.receiverId == targetUser.id) || (it.senderId == targetUser.id && it.receiverId == currentUser.id) }
     var text by remember { mutableStateOf("") }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { _ -> }
-
+    
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(targetUser.name, fontWeight = FontWeight.Bold) },
+                title = { Text(targetUser.name.uppercase(), fontWeight = FontWeight.Black, letterSpacing = 1.sp) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }
             )
         },
         bottomBar = {
-            Surface(tonalElevation = 8.dp, color = MaterialTheme.colorScheme.surface) {
-                Row(modifier = Modifier.padding(12.dp).navigationBarsPadding().imePadding(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconButton(onClick = { launcher.launch("*/*") }) { Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary) }
-                    OutlinedTextField(
-                        value = text,
-                        onValueChange = { text = it },
+            Surface(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
+                Row(modifier = Modifier.padding(16.dp).navigationBarsPadding().imePadding(), verticalAlignment = Alignment.CenterVertically) {
+                    TextField(
+                        value = text, onValueChange = { text = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Write a message...") },
-                        shape = RoundedCornerShape(28.dp),
-                        colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        placeholder = { Text("TYPE MESSAGE...", style = MaterialTheme.typography.labelSmall) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        )
                     )
-                    IconButton(onClick = { if (text.isNotBlank()) { viewModel.sendChatMessage(targetUser.id, text); text = "" } }) {
-                        Icon(Icons.AutoMirrored.Filled.Send, null, tint = MaterialTheme.colorScheme.primary)
+                    Button(
+                        onClick = { if (text.isNotBlank()) { viewModel.sendChatMessage(targetUser.id, text); text = "" } },
+                        shape = RoundedCornerShape(0.dp)
+                    ) {
+                        Text("SEND")
                     }
                 }
             }
         }
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(vertical = 24.dp)
+        ) {
             items(chatMessages) { msg ->
                 val isMe = msg.senderId == currentUser.id
-                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = if (isMe) Alignment.End else Alignment.Start) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = if (isMe) Alignment.End else Alignment.Start
+                ) {
                     Surface(
                         color = if (isMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = if (isMe) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                        shape = RoundedCornerShape(
-                            topStart = 20.dp,
-                            topEnd = 20.dp,
-                            bottomStart = if (isMe) 20.dp else 4.dp,
-                            bottomEnd = if (isMe) 4.dp else 20.dp
-                        )
+                        shape = RoundedCornerShape(0.dp),
+                        border = if (!isMe) BorderStroke(1.dp, MaterialTheme.colorScheme.outline) else null
                     ) {
-                        Text(msg.messageText, modifier = Modifier.padding(14.dp), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            msg.messageText, 
+                            modifier = Modifier.padding(16.dp), 
+                            color = if (isMe) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
+                    Text(
+                        if (isMe) "YOU" else targetUser.name.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(top = 4.dp),
+                        color = Color.Gray
+                    )
                 }
             }
         }
@@ -680,91 +767,154 @@ fun ChatDetailView(viewModel: SkillskapesViewModel, currentUser: Employee, targe
 }
 
 @Composable
-fun SuperAdminView(viewModel: SkillskapesViewModel, user: Employee, employees: List<Employee>) {
+fun SuperAdminView(viewModel: SkillskapesViewModel, employees: List<Employee>) {
     val timetable by viewModel.allAttendanceRecords.collectAsStateWithLifecycle()
-    
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        item { 
-            Text("Admin Center", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold) 
+    var dateQuery by remember { mutableStateOf("") }
+    var selectedEditRecord by remember { mutableStateOf<AttendanceRecord?>(null) }
+
+    val filteredLedger = remember(timetable, dateQuery) {
+        timetable.filter { it.date.contains(dateQuery) || it.dayOfWeek.contains(dateQuery, ignoreCase = true) }
+            .sortedByDescending { 
+                try { SimpleDateFormat("dd/MM/yyyy", Locale.US).parse(it.date)?.time ?: 0L } catch(e: Exception) { 0L }
+            }
+    }
+
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(32.dp), verticalArrangement = Arrangement.spacedBy(32.dp)) {
+        item { Text("ADMIN", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black) }
+        
+        item {
+            Button(
+                onClick = { viewModel.generateNextWeekPlan() }, 
+                modifier = Modifier.fillMaxWidth().height(56.dp), 
+                shape = RoundedCornerShape(0.dp)
+            ) {
+                Text("DEPLOY NEW CYCLE", fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+            }
         }
 
         item {
-            Card(
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text("Timetable Master", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = { viewModel.generateNextWeekPlan() }, 
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onPrimaryContainer, contentColor = MaterialTheme.colorScheme.primaryContainer)
+            MonoSearchField(value = dateQuery, onValueChange = { dateQuery = it })
+        }
+
+        val chunkedLedger = filteredLedger.chunked(4)
+        items(chunkedLedger) { row ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { record ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f)
+                            .border(1.dp, MaterialTheme.colorScheme.outline)
+                            .clickable { selectedEditRecord = record },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.DateRange, null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Deploy Next Cycle")
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(record.date.take(5), fontWeight = FontWeight.Black, fontSize = 12.sp)
+                            Text(record.dayOfWeek.take(3).uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                        }
                     }
                 }
+                repeat(4 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
             }
         }
 
-        item { 
-            Text("Seating Ledger", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) 
-        }
-
-        items(timetable.sortedByDescending { it.date }) { record ->
-            ListItem(
-                headlineContent = { Text(record.date, fontWeight = FontWeight.Bold) },
-                supportingContent = { Text(record.dayOfWeek) },
-                trailingContent = { 
-                    IconButton(onClick = { viewModel.removeAttendanceForDate(record.date) }) {
-                        Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
-                    }
-                },
-                modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
-            )
-        }
-
-        item { 
-            Text("User Authority", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) 
-        }
-
+        item { Text("TEAM AUTHORITY", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black) }
         items(employees) { emp ->
-            ListItem(
-                headlineContent = { Text(emp.name, fontWeight = FontWeight.Bold) },
-                supportingContent = { Text(emp.role) },
-                trailingContent = { 
-                    Switch(
-                        checked = emp.isSuperAdmin, 
-                        onCheckedChange = { viewModel.assignSuperAdmin(emp.id, it) },
-                        enabled = emp.id != user.id
-                    ) 
-                }
-            )
+            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(emp.name.uppercase(), modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                Switch(checked = emp.isSuperAdmin, onCheckedChange = { viewModel.assignSuperAdmin(emp.id, it) })
+            }
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)))
         }
+    }
+
+    if (selectedEditRecord != null) {
+        AdminDateEditDialog(
+            record = selectedEditRecord!!,
+            employees = employees,
+            onDismiss = { selectedEditRecord = null },
+            onSave = { p1, p2, p3, abs ->
+                viewModel.updateSeating(selectedEditRecord!!.date, p1, p2, p3, abs)
+                selectedEditRecord = null
+            },
+            onDelete = {
+                viewModel.removeAttendanceForDate(selectedEditRecord!!.date)
+                selectedEditRecord = null
+            }
+        )
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ProfileView(viewModel: SkillskapesViewModel, user: Employee, employees: List<Employee>) {
-    var name by remember { mutableStateOf(user.name) }
-    var email by remember { mutableStateOf(user.email) }
-    val context = LocalContext.current
+fun AdminDateEditDialog(
+    record: AttendanceRecord,
+    employees: List<Employee>,
+    onDismiss: () -> Unit,
+    onSave: (String?, String?, String?, String?) -> Unit,
+    onDelete: () -> Unit
+) {
+    var p1 by remember { mutableStateOf(record.p1) }
+    var p2 by remember { mutableStateOf(record.p2) }
+    var p3 by remember { mutableStateOf(record.p3) }
+    var absents by remember { mutableStateOf(record.absent?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()) }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Text("Account Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-        Card(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Full Name") }, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email Address") }, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())
-                Button(onClick = { viewModel.updateProfile(name, email, user.avatarUri ?: "av_logo_1"); Toast.makeText(context, "Profile Saved", Toast.LENGTH_SHORT).show() }, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                    Text("Save Changes")
+    val officeMembers = listOfNotNull(p1, p2, p3)
+    val availableForAbsent = employees.filter { it.role != "Boss" && !officeMembers.contains(it.name) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(0.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(record.date, fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                AdminSeatPicker("NODE 01", p1, employees) { p1 = it }
+                AdminSeatPicker("NODE 02", p2, employees) { p2 = it }
+                AdminSeatPicker("CREATIVE", p3, employees) { p3 = it }
+                
+                Text("MARK ABSENT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    availableForAbsent.forEach { emp ->
+                        val isMarked = absents.contains(emp.name)
+                        FilterChip(
+                            selected = isMarked,
+                            onClick = { absents = if (isMarked) absents - emp.name else absents + emp.name },
+                            label = { Text(emp.name.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            shape = RoundedCornerShape(0.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSave(p1, p2, p3, absents.joinToString(",")) }, shape = RoundedCornerShape(0.dp)) { Text("SAVE") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDelete) { Text("DELETE", color = Color.Red) }
+        }
+    )
+}
+
+@Composable
+fun AdminSeatPicker(label: String, current: String?, employees: List<Employee>, onSelect: (String?) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Column {
+        Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = Color.Gray)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .border(1.dp, MaterialTheme.colorScheme.outline)
+                .clickable { expanded = true }
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(current?.uppercase() ?: "VACANT", fontWeight = FontWeight.Bold)
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                DropdownMenuItem(text = { Text("VACANT") }, onClick = { onSelect(null); expanded = false })
+                employees.forEach { emp ->
+                    DropdownMenuItem(text = { Text(emp.name.uppercase()) }, onClick = { onSelect(emp.name); expanded = false })
                 }
             }
         }
@@ -772,21 +922,108 @@ fun ProfileView(viewModel: SkillskapesViewModel, user: Employee, employees: List
 }
 
 @Composable
-fun MetricPill(label: String, value: String, color: Color, modifier: Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        color = color.copy(alpha = 0.1f),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.2f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = color)
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = color)
+fun AnalyticsDashboard(employees: List<Employee>, statsMap: Map<String, EmployeeStats>, viewModel: SkillskapesViewModel) {
+    val analytics by viewModel.bossAnalytics.collectAsStateWithLifecycle()
+    val today by viewModel.todayStatus.collectAsStateWithLifecycle()
+    val nonBosses = employees.filter { it.role != "Boss" }
+    var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
+
+    val completedDays = analytics["completed_working_days"] ?: 0
+    val totalPresence = analytics["total_presence"] ?: 0
+
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(32.dp), verticalArrangement = Arrangement.spacedBy(32.dp)) {
+        item { Text("ANALYTICS", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black) }
+        
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                MonoMetric("COMPLETED DAYS", "$completedDays", Modifier.weight(1f))
+                MonoMetric("TOTAL PRESENCE", "$totalPresence", Modifier.weight(1f))
+            }
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                AnalyticsStatusSection("IN OFFICE TODAY", today["office"] ?: emptyList(), employees) { selectedEmployeeId = it }
+                AnalyticsStatusSection("WFH TODAY", today["wfh"] ?: emptyList(), employees) { selectedEmployeeId = it }
+                AnalyticsStatusSection("ABSENT TODAY", today["absent"] ?: emptyList(), employees) { selectedEmployeeId = it }
+            }
+        }
+        
+        item { Text("PERFORMANCE LEDGER", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black) }
+        
+        items(nonBosses) { emp ->
+            val stats = statsMap[emp.id] ?: EmployeeStats(0, 0, 0)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { selectedEmployeeId = emp.id }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(emp.name.uppercase(), fontWeight = FontWeight.Black)
+                    Text(emp.role.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                }
+                Text("${stats.attendanceRate.toInt()}%", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+            }
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)))
+        }
+    }
+
+    if (selectedEmployeeId != null) {
+        val emp = employees.find { it.id == selectedEmployeeId }
+        val stats = statsMap[selectedEmployeeId] ?: EmployeeStats(0, 0, 0)
+        if (emp != null) {
+            IndividualActivityDialog(emp, stats) { selectedEmployeeId = null }
         }
     }
 }
 
-@Composable fun MeetingScheduleHeader() {}
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun AnalyticsStatusSection(title: String, names: List<String>, allEmps: List<Employee>, onNameClick: (String) -> Unit) {
+    Column {
+        Text(title, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = Color.Gray)
+        Spacer(modifier = Modifier.height(8.dp))
+        if (names.isEmpty()) {
+            Text("NONE", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
+        } else {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                names.forEach { name ->
+                    Surface(
+                        modifier = Modifier.clickable { allEmps.find { it.name == name }?.let { onNameClick(it.id) } },
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    ) {
+                        Text(name.uppercase(), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun IndividualActivityDialog(emp: Employee, stats: EmployeeStats, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(0.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(emp.name.uppercase(), fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                MonoMetric("OFFICE DAYS", "${stats.inOfficeDays}", Modifier.fillMaxWidth())
+                MonoMetric("WFH DAYS", "${stats.wfhDays}", Modifier.fillMaxWidth())
+                MonoMetric("ABSENT DAYS", "${stats.absentDays}", Modifier.fillMaxWidth())
+                Text("ATTENDANCE RATE: ${stats.attendanceRate.toInt()}%", fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelLarge)
+            }
+        },
+        confirmButton = { Button(onClick = onDismiss, shape = RoundedCornerShape(0.dp)) { Text("CLOSE") } }
+    )
+}
+
+@Composable fun ProfileView(u: Employee, s: Map<String, EmployeeStats>) {}
+@Composable fun MetricPill(l: String, v: String, c: Color, m: Modifier) {}
+@Composable fun SeatCard(l: String, p: String?, m: Modifier, e: List<Employee>, a: (String?) -> Unit) {}
 @Composable fun MeetingCard(m: Meeting, d: () -> Unit) {}
 @Composable fun LeaveApprovalCard(r: LeaveRequest, a: () -> Unit, re: () -> Unit) {}
 @Composable fun StatsBarCard(e: Employee, s: EmployeeStats) {}

@@ -84,6 +84,71 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // --- Analytical Flows ---
+    val bossAnalytics: StateFlow<Map<String, Int>> = allAttendanceRecords.map { list ->
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.US)
+        val now = Calendar.getInstance()
+        val currentTimestamp = now.timeInMillis
+        val cutoffCalendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 18)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+        }
+        val todayCutoff = cutoffCalendar.timeInMillis
+
+        var completedWorkingDays = 0
+        var totalOfficeNodesOccupied = 0
+
+        list.forEach { rec ->
+            val recordDate = try { sdf.parse(rec.date) } catch(e: Exception) { null }
+            if (recordDate == null) return@forEach
+            
+            val recordCal = Calendar.getInstance().apply { time = recordDate }
+            val isToday = recordCal.get(Calendar.YEAR) == now.get(Calendar.YEAR) && 
+                          recordCal.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+
+            // Logic: Skip if future, OR if it's today but before 6 PM
+            if (recordDate.time > currentTimestamp) return@forEach
+            if (isToday && currentTimestamp < todayCutoff) return@forEach
+            
+            if (rec.dayOfWeek != "Sunday") {
+                completedWorkingDays++
+                if (rec.p1 != null) totalOfficeNodesOccupied++
+                if (rec.p2 != null) totalOfficeNodesOccupied++
+                if (rec.p3 != null) totalOfficeNodesOccupied++
+            }
+        }
+        
+        mapOf(
+            "completed_working_days" to completedWorkingDays,
+            "total_presence" to totalOfficeNodesOccupied
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    val todayStatus: StateFlow<Map<String, List<String>>> = combine(
+        selectedDayRecord,
+        allEmployees
+    ) { record, employees ->
+        if (record == null) return@combine emptyMap()
+        
+        val office = mutableListOf<String>()
+        val absent = record.absent?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+        
+        record.p1?.let { office.add(it) }
+        record.p2?.let { office.add(it) }
+        record.p3?.let { office.add(it) }
+        
+        val wfh = employees.filter { it.role != "Boss" }
+            .map { it.name }
+            .filter { name -> !office.contains(name) && !absent.contains(name) }
+            
+        mapOf(
+            "office" to office,
+            "absent" to absent,
+            "wfh" to wfh
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     // Dynamically calculate statistical records for all registered individuals!
     val employeeStatistics: StateFlow<Map<String, EmployeeStats>> = combine(
         repository.allAttendance,
@@ -96,17 +161,41 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
             statsMap[emp.id] = EmployeeStats(0, 0, 0)
         }
 
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.US)
+        val now = Calendar.getInstance()
+        val currentTimestamp = now.timeInMillis
+        
+        // Threshold: Day is only counted if it's past 6:00 PM
+        val cutoffCalendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 18)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+        }
+        val todayCutoff = cutoffCalendar.timeInMillis
+
         records.forEach { record ->
+            val recordDate = try { sdf.parse(record.date) } catch(e: Exception) { null }
+            if (recordDate == null) return@forEach
+            
+            val recordCal = Calendar.getInstance().apply { time = recordDate }
+            val isToday = recordCal.get(Calendar.YEAR) == now.get(Calendar.YEAR) && 
+                          recordCal.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+            
+            // Logic: Skip if future, OR if it's today but before 6 PM
+            if (recordDate.time > currentTimestamp) return@forEach
+            if (isToday && currentTimestamp < todayCutoff) return@forEach
+
             val p1 = record.p1?.lowercase()?.trim() ?: ""
             val p2 = record.p2?.lowercase()?.trim() ?: ""
             val p3 = record.p3?.lowercase()?.trim() ?: ""
             val absents = record.absent?.lowercase()?.split(",")?.map { it.trim() } ?: emptyList()
 
             employees.forEach { emp ->
+                if (emp.role == "Boss") return@forEach // Skip bosses in stats
+                
                 val empId = emp.id.lowercase().trim()
                 val empName = emp.name.lowercase().trim()
                 
-                // Matches either ID or exact display name
                 val isPresent = (p1 == empId || p2 == empId || p3 == empId) ||
                                 (p1 == empName || p2 == empName || p3 == empName)
 
@@ -163,11 +252,11 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
 
             calendar.time = startDate
 
-            // Generate next 7 days in database, skipping Sundays
-            for (i in 1..7) {
+            // Generate next 6 days (Mon-Sat block), skipping Sundays
+            for (i in 1..6) {
                 calendar.add(Calendar.DAY_OF_YEAR, 1)
                 if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-                    continue // Skip all Sundays
+                    calendar.add(Calendar.DAY_OF_YEAR, 1) // Force skip to Monday
                 }
                 val targetDateStr = sdf.format(calendar.time)
                 repository.getOrCreateAttendanceForDate(targetDateStr)
@@ -318,32 +407,30 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
     }
 
     // --- Attendance & Seating Management ---
-    fun updateSeating(p1: String?, p2: String?, p3: String?) {
+    fun updateSeating(targetDate: String, p1: String?, p2: String?, p3: String?, absent: String? = null) {
         viewModelScope.launch {
-            val currentDate = _selectedDate.value
-            val existing = selectedDayRecord.value
+            val all = repository.allAttendance.first()
+            val existing = all.find { it.date == targetDate }
             val dayOfWeek = existing?.dayOfWeek ?: "Monday"
-            val absents = existing?.absent
-            val notes = existing?.note
 
             val updatedRecord = AttendanceRecord(
-                date = currentDate,
+                date = targetDate,
                 dayOfWeek = dayOfWeek,
-                p1 = if (p1.isNullOrBlank() || p1 == "Vacant") null else p1,
-                p2 = if (p2.isNullOrBlank() || p2 == "Vacant") null else p2,
-                p3 = if (p3.isNullOrBlank() || p3 == "Vacant") null else p3,
-                absent = absents,
-                note = notes
+                p1 = if (p1.isNullOrBlank() || p1 == "VACANT") null else p1,
+                p2 = if (p2.isNullOrBlank() || p2 == "VACANT") null else p2,
+                p3 = if (p3.isNullOrBlank() || p3 == "VACANT") null else p3,
+                absent = absent ?: existing?.absent,
+                note = existing?.note
             )
             repository.forceUpdateAttendance(updatedRecord)
 
             // Alert notification to employees
-            val bossLabel = _currentUser.value?.name ?: "Boss"
+            val bossLabel = _currentUser.value?.name ?: "Superadmin"
             repository.insertNotification(
                 AppNotification(
                     employeeId = "all",
-                    title = "Timetable Changed ⚠️",
-                    message = "Active workspace assignments for $currentDate were changed by Boss $bossLabel."
+                    title = "Node Assignment 🏢",
+                    message = "Personnel layout for $targetDate adjusted by $bossLabel. Check your seat!"
                 )
             )
             syncDataToFirebaseFirestore()
