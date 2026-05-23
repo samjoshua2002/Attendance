@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
         ChatMessage::class,
         AppNotification::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -53,26 +53,29 @@ abstract class AppDatabase : RoomDatabase() {
     private class AppDatabaseCallback(
         private val scope: CoroutineScope
     ) : RoomDatabase.Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) {
-            super.onCreate(db)
+        override fun onOpen(db: SupportSQLiteDatabase) {
+            super.onOpen(db)
             INSTANCE?.let { database ->
                 scope.launch(Dispatchers.IO) {
-                    // Populate employees
                     val employeeDao = database.employeeDao()
-                    SeedData.INITIAL_EMPLOYEES.forEach { emp ->
-                        employeeDao.insertEmployee(emp)
-                    }
+                    // Check if we already have data
+                    if (employeeDao.getEmployeeCount() == 0) {
+                        // Populate employees
+                        SeedData.INITIAL_EMPLOYEES.forEach { emp ->
+                            employeeDao.insertEmployee(emp)
+                        }
 
-                    // Populate initial meetings
-                    val meetingDao = database.meetingDao()
-                    SeedData.INITIAL_MEETINGS.forEach { meeting ->
-                        meetingDao.insertMeeting(meeting)
-                    }
+                        // Populate initial meetings
+                        val meetingDao = database.meetingDao()
+                        SeedData.INITIAL_MEETINGS.forEach { meeting ->
+                            meetingDao.insertMeeting(meeting)
+                        }
 
-                    // Populate attendance history (over 100 entries)
-                    val attendanceDao = database.attendanceDao()
-                    val historicalRecords = SeedData.parseSeedAttendance()
-                    attendanceDao.insertAllAttendance(historicalRecords)
+                        // Populate attendance history
+                        val attendanceDao = database.attendanceDao()
+                        val historicalRecords = SeedData.parseSeedAttendance()
+                        attendanceDao.insertAllAttendance(historicalRecords)
+                    }
                 }
             }
         }

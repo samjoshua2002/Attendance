@@ -22,6 +22,9 @@ interface EmployeeDao {
 
     @Query("UPDATE employees SET isActive = 0 WHERE id = :employeeId")
     suspend fun deactivateEmployee(employeeId: String)
+
+    @Query("DELETE FROM employees")
+    suspend fun deleteAllEmployees()
 }
 
 @Dao
@@ -40,6 +43,9 @@ interface AttendanceDao {
 
     @Query("DELETE FROM attendance WHERE date = :date")
     suspend fun deleteAttendanceByDate(date: String)
+
+    @Query("DELETE FROM attendance")
+    suspend fun deleteAllAttendance()
 }
 
 @Dao
@@ -70,6 +76,9 @@ interface MeetingDao {
 
     @Query("DELETE FROM meetings WHERE id = :id")
     suspend fun deleteMeeting(id: Int)
+
+    @Query("DELETE FROM meetings")
+    suspend fun deleteAllMeetings()
 }
 
 @Dao

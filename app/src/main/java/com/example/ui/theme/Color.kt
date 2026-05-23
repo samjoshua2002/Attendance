@@ -2,25 +2,24 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Modern Immersive Blue theme
-val SlateBackground = Color(0xFF0B0F19)
-val SlateCard = Color(0xFF161C2A)
-val SlateBorder = Color(0xFF2E374A)
+// Primary Colors
+val IndigoPrimary = Color(0xFF6366F1)
+val IndigoLight = Color(0xFF818CF8)
+val IndigoDark = Color(0xFF4338CA)
 
-val ImmersiveBlue = Color(0xFF005FB0)
-val ImmersiveBlueLight = Color(0xFFD1E4FF)
-val ImmersiveBlueDark = Color(0xFF001D36)
+val GoldAccent = Color(0xFFF59E0B)
 
-val StateInOffice = Color(0xFF10B981) // Emerald Green
-val StateWFH = Color(0xFF0EA5E9)      // Sky Blue
-val StateAbsent = Color(0xFFF43F5E)   // Crimson / Rose Red
+// Backgrounds
+val DarkBg = Color(0xFF0F172A)
+val DarkSurface = Color(0xFF1E293B)
+val LightBg = Color(0xFFF8FAFC)
+val LightSurface = Color(0xFFFFFFFF)
 
-val TextPrimaryDark = Color(0xFFF1F5F9)
-val TextSecondaryDark = Color(0xFF94A3B8)
-val TextPrimaryLight = Color(0xFF1A1C1E)
-val TextSecondaryLight = Color(0xFF64748B)
+// Status Colors
+val StateInOffice = Color(0xFF10B981)
+val StateWFH = Color(0xFF0EA5E9)
+val StateAbsent = Color(0xFFF43F5E)
 
-val WhiteBackground = Color(0xFFF7F9FC)
-val WhiteCard = Color(0xFFFFFFFF)
-val WhiteBorder = Color(0xFFE2E8F0)
-
+// Text Colors (used in color scheme)
+val TextOnDark = Color(0xFFF1F5F9)
+val TextOnLight = Color(0xFF0F172A)

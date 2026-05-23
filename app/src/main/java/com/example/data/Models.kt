@@ -11,7 +11,8 @@ data class Employee(
     val email: String,
     val isActive: Boolean = true,
     val password: String = "password123", // secure password field
-    val avatarUri: String? = null // custom avatar identifier (preset avatars or local)
+    val avatarUri: String? = null, // custom avatar identifier (preset avatars or local)
+    val isSuperAdmin: Boolean = false // Superadmin flag for global management
 )
 
 @Entity(tableName = "attendance")

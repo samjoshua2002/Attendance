@@ -2,6 +2,7 @@ package com.example.data
 
 import android.util.Log
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,9 +36,11 @@ class Repository(
     suspend fun insertEmployee(employee: Employee) = employeeDao.insertEmployee(employee)
     suspend fun updateEmployee(employee: Employee) = employeeDao.updateEmployee(employee)
     suspend fun deactivateEmployee(employeeId: String) = employeeDao.deactivateEmployee(employeeId)
+    suspend fun clearAllEmployees() = employeeDao.deleteAllEmployees()
 
     suspend fun insertMeeting(meeting: Meeting) = meetingDao.insertMeeting(meeting)
     suspend fun deleteMeeting(meetingId: Int) = meetingDao.deleteMeeting(meetingId)
+    suspend fun clearAllMeetings() = meetingDao.deleteAllMeetings()
 
     suspend fun insertChatMessage(message: ChatMessage) = chatMessageDao.insertMessage(message)
     suspend fun clearChatHistory() = chatMessageDao.clearAllMessages()
@@ -77,6 +80,18 @@ class Repository(
 
     suspend fun forceUpdateAttendance(record: AttendanceRecord) {
         attendanceDao.insertAttendance(record)
+    }
+
+    suspend fun clearAllAttendance() = attendanceDao.deleteAllAttendance()
+
+    suspend fun removeAttendanceForDate(date: String) {
+        attendanceDao.deleteAttendanceByDate(date)
+    }
+
+    suspend fun assignSuperAdmin(employeeId: String, isSuper: Boolean) {
+        val emps = employeeDao.getAllEmployees().first()
+        val emp = emps.find { it.id == employeeId } ?: return
+        employeeDao.updateEmployee(emp.copy(isSuperAdmin = isSuper))
     }
 
     private suspend fun applyEmployeeLeaveToAttendance(dateStr: String, employeeId: String) {

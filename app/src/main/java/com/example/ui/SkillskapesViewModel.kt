@@ -12,28 +12,26 @@ import java.util.*
 
 class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
 
+    private val _isInitializing = MutableStateFlow(true)
+    val isInitializing: StateFlow<Boolean> = _isInitializing.asStateFlow()
+
     init {
         viewModelScope.launch {
             try {
-                if (repository.getEmployeeCount() == 0) {
-                    // Populate employees
-                    SeedData.INITIAL_EMPLOYEES.forEach { emp ->
-                        repository.insertEmployee(emp)
-                    }
-
-                    // Populate initial meetings
-                    SeedData.INITIAL_MEETINGS.forEach { meeting ->
-                        repository.insertMeeting(meeting)
-                    }
-
-                    // Populate attendance history (over 100 entries)
-                    val historicalRecords = SeedData.parseSeedAttendance()
-                    historicalRecords.forEach { record ->
-                        repository.forceUpdateAttendance(record)
-                    }
+                // DB is populated by AppDatabaseCallback onOpen/onCreate
+                // We ensure it's finished by checking count
+                var count = repository.getEmployeeCount()
+                if (count == 0) {
+                    SeedData.INITIAL_EMPLOYEES.forEach { emp -> repository.insertEmployee(emp) }
+                    SeedData.INITIAL_MEETINGS.forEach { meeting -> repository.insertMeeting(meeting) }
+                    SeedData.parseSeedAttendance().forEach { record -> repository.forceUpdateAttendance(record) }
                 }
+                // Auto-sync local verified data to Firestore
+                syncDataToFirebaseFirestore()
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                _isInitializing.value = false
             }
         }
     }
@@ -134,11 +132,65 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
         _selectedDate.value = date
     }
 
-    // --- Authentication Actions ---
+    fun removeAttendanceForDate(date: String) {
+        viewModelScope.launch {
+            repository.removeAttendanceForDate(date)
+            syncDataToFirebaseFirestore()
+        }
+    }
+
+    fun assignSuperAdmin(id: String, isSuper: Boolean) {
+        viewModelScope.launch {
+            repository.assignSuperAdmin(id, isSuper)
+            syncDataToFirebaseFirestore()
+        }
+    }
+
+    fun generateNextWeekPlan() {
+        viewModelScope.launch {
+            val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.US)
+            val calendar = Calendar.getInstance()
+            
+            // Start from the latest date in the database or today
+            val allAttendance = repository.allAttendance.first()
+            val latestRecord = allAttendance.maxByOrNull { 
+                try { sdf.parse(it.date)?.time ?: 0L } catch(e: Exception) { 0L }
+            }
+            
+            val startDate = latestRecord?.let { 
+                try { sdf.parse(it.date) } catch(e: Exception) { null }
+            } ?: calendar.time
+
+            calendar.time = startDate
+
+            // Generate next 7 days in database, skipping Sundays
+            for (i in 1..7) {
+                calendar.add(Calendar.DAY_OF_YEAR, 1)
+                if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                    continue // Skip all Sundays
+                }
+                val targetDateStr = sdf.format(calendar.time)
+                repository.getOrCreateAttendanceForDate(targetDateStr)
+            }
+
+            // Put a dynamic alert
+            val bossLabel = _currentUser.value?.name ?: "Superadmin"
+            repository.insertNotification(
+                AppNotification(
+                    employeeId = "all",
+                    title = "New Timetable Released 📅",
+                    message = "The next rotation block has been scheduled by $bossLabel. Check your assigned seats!"
+                )
+            )
+            syncDataToFirebaseFirestore()
+        }
+    }
     fun login(emailParam: String, passwordParam: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             val trimmedEmail = emailParam.trim()
-            val user = allEmployees.value.find { 
+            // Query repository directly to avoid waiting for StateFlow propagation
+            val allEmps = repository.allEmployees.first()
+            val user = allEmps.find { 
                 it.email.equals(trimmedEmail, ignoreCase = true) || it.id.equals(trimmedEmail, ignoreCase = true)
             }
             if (user == null) {
@@ -146,6 +198,7 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
             } else if (user.password == passwordParam) {
                 _currentUser.value = user
                 onSuccess()
+                syncDataToFirebaseFirestore() // Auto-sync on login
             } else {
                 onError("Incorrect password entered. Try again.")
             }
@@ -185,6 +238,7 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
                 )
             )
             onSuccess()
+            syncDataToFirebaseFirestore() // Auto-sync on registration
         }
     }
 
@@ -202,6 +256,7 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
             )
             repository.insertEmployee(updated)
             _currentUser.value = updated
+            syncDataToFirebaseFirestore() // Auto-sync on profile update
         }
     }
 
@@ -228,6 +283,7 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
                     message = "${name.trim()} has been invited as '$role'. Credentials pre-populated with password: password123."
                 )
             )
+            syncDataToFirebaseFirestore() // Auto-sync on invitation
         }
     }
 
@@ -290,39 +346,10 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
                     message = "Active workspace assignments for $currentDate were changed by Boss $bossLabel."
                 )
             )
+            syncDataToFirebaseFirestore()
         }
     }
 
-    fun generateNextWeekPlan() {
-        viewModelScope.launch {
-            val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.US)
-            val calendar = Calendar.getInstance()
-            try {
-                val parsedDate = sdf.parse(_selectedDate.value)
-                if (parsedDate != null) {
-                    calendar.time = parsedDate
-                }
-            } catch (e: Exception) {
-                // fallback remains current
-            }
-            // Generate next 7 days in database
-            for (i in 1..7) {
-                calendar.add(Calendar.DAY_OF_YEAR, 1)
-                val targetDateStr = sdf.format(calendar.time)
-                repository.getOrCreateAttendanceForDate(targetDateStr)
-            }
-
-            // Put a dynamic alert
-            val bossLabel = _currentUser.value?.name ?: "Management"
-            repository.insertNotification(
-                AppNotification(
-                    employeeId = "all",
-                    title = "Upcoming Rotator Planners 📅",
-                    message = "Rotational seating arrangements for next week pre-populated by Boss $bossLabel. Check out and customize!"
-                )
-            )
-        }
-    }
 
     fun applyLeave(date: String, reason: String) {
         viewModelScope.launch {
@@ -400,48 +427,24 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
     }
 
     // --- Firebase Cloud Firestore Sync Interface ---
-    fun syncDataToFirebaseFirestore() {
-        _syncState.value = SyncState("SYNCING", 0.10f, "Setting up Firestore Connection...")
+    fun syncDataToFirebaseFirestore(
+        emps: List<Employee>? = null,
+        attendance: List<AttendanceRecord>? = null,
+        meets: List<Meeting>? = null,
+        chats: List<ChatMessage>? = null
+    ) {
         viewModelScope.launch {
             try {
                 val db = FirebaseFirestore.getInstance()
                 
-                val emps = allEmployees.value
-                val attendance = allAttendanceRecords.value
-                val meets = meetings.value
-                val chats = chatMessages.value
-                
-                var totalTasks = emps.size + attendance.size + meets.size + chats.size
-                if (totalTasks == 0) {
-                    _syncState.value = SyncState("SUCCESS", 1.0f, "No local records detected to synchronize. Add some tasks or chats first!")
-                    return@launch
-                }
-                
-                var completedTasks = 0
-                var failedTasks = 0
-                
-                fun checkProgress() {
-                    completedTasks++
-                    val currentProgress = 0.10f + (completedTasks.toFloat() / totalTasks) * 0.90f
-                    if (completedTasks + failedTasks >= totalTasks) {
-                        if (failedTasks > 0) {
-                            _syncState.value = SyncState("ERROR", 1.0f, "Sync completed with $failedTasks failures out of $totalTasks items.")
-                        } else {
-                            _syncState.value = SyncState(
-                                "SUCCESS", 
-                                1.0f, 
-                                "Success! Populated cloud Firestore collections: 'employees' (${emps.size}), 'attendance_records' (${attendance.size}), 'meetings' (${meets.size}), 'chat_messages' (${chats.size})."
-                            )
-                        }
-                    } else {
-                        _syncState.value = SyncState("SYNCING", currentProgress, "Uploaded $completedTasks of $totalTasks records safely...")
-                    }
-                }
-                
-                _syncState.value = SyncState("SYNCING", 0.15f, "Writing $totalTasks records across 4 cloud collections...")
+                // Use provided data or fetch current snapshot from repository flows
+                val finalEmps = emps ?: repository.allEmployees.first()
+                val finalAttendance = attendance ?: repository.allAttendance.first()
+                val finalMeets = meets ?: repository.allMeetings.first()
+                val finalChats = chats ?: repository.allChatMessages.first()
                 
                 // 1. Sync Employees
-                emps.forEach { emp ->
+                finalEmps.forEach { emp ->
                     val empMap = mapOf(
                         "id" to emp.id,
                         "name" to emp.name,
@@ -452,35 +455,24 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
                         "avatarUri" to (emp.avatarUri ?: "av_logo_1")
                     )
                     db.collection("employees").document(emp.id).set(empMap)
-                        .addOnSuccessListener { checkProgress() }
-                        .addOnFailureListener { e ->
-                            failedTasks++
-                            checkProgress()
-                        }
                 }
                 
-                // 2. Sync Attendance
-                attendance.forEach { record ->
+                // 2. Sync Attendance (Timetable collection as requested)
+                finalAttendance.forEach { record ->
                     val safeDateId = record.date.replace("/", "-")
                     val recMap = mapOf(
                         "date" to record.date,
-                        "dayOfWeek" to record.dayOfWeek,
-                        "p1" to (record.p1 ?: "Null"),
-                        "p2" to (record.p2 ?: "Null"),
-                        "p3" to (record.p3 ?: "Null"),
-                        "absent" to (record.absent ?: ""),
-                        "note" to (record.note ?: "")
+                        "day" to record.dayOfWeek,
+                        "p1" to (record.p1 ?: "Vacant"),
+                        "p2" to (record.p2 ?: "Vacant"),
+                        "p3" to (record.p3 ?: "Vacant"),
+                        "absent" to (record.absent ?: "None")
                     )
-                    db.collection("attendance_records").document(safeDateId).set(recMap)
-                        .addOnSuccessListener { checkProgress() }
-                        .addOnFailureListener { e ->
-                            failedTasks++
-                            checkProgress()
-                        }
+                    db.collection("timetable").document(safeDateId).set(recMap)
                 }
                 
                 // 3. Sync Meetings
-                meets.forEach { meeting ->
+                finalMeets.forEach { meeting ->
                     val docId = if (meeting.id == 0) UUID.randomUUID().toString() else meeting.id.toString()
                     val meetMap = mapOf(
                         "id" to meeting.id,
@@ -492,15 +484,10 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
                         "notes" to (meeting.notes ?: "")
                     )
                     db.collection("meetings").document(docId).set(meetMap)
-                        .addOnSuccessListener { checkProgress() }
-                        .addOnFailureListener { e ->
-                            failedTasks++
-                            checkProgress()
-                        }
                 }
                 
                 // 4. Sync Chat Messages
-                chats.forEach { message ->
+                finalChats.forEach { message ->
                     val docId = if (message.id == 0) UUID.randomUUID().toString() else message.id.toString()
                     val msgMap = mapOf(
                         "id" to message.id,
@@ -512,15 +499,9 @@ class SkillskapesViewModel(private val repository: Repository) : ViewModel() {
                         "timestamp" to message.timestamp
                     )
                     db.collection("chat_messages").document(docId).set(msgMap)
-                        .addOnSuccessListener { checkProgress() }
-                        .addOnFailureListener { e ->
-                            failedTasks++
-                            checkProgress()
-                        }
                 }
                 
             } catch (e: Exception) {
-                _syncState.value = SyncState("ERROR", 1.0f, "Error: ${e.localizedMessage}")
                 e.printStackTrace()
             }
         }

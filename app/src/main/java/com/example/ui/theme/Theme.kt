@@ -8,31 +8,31 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF8DCDFF),     // lighter blue for readability in dark mode
-    onPrimary = Color(0xFF003260),
-    primaryContainer = ImmersiveBlue,
+    primary = IndigoLight,
+    onPrimary = Color.White,
+    primaryContainer = IndigoDark,
     onPrimaryContainer = Color.White,
     secondary = StateInOffice,
-    tertiary = StateWFH,
-    background = SlateBackground,
-    surface = SlateCard,
-    onBackground = TextPrimaryDark,
-    onSurface = TextPrimaryDark,
-    outline = SlateBorder
+    surface = DarkSurface,
+    background = DarkBg,
+    onSurface = TextOnDark,
+    onBackground = TextOnDark,
+    surfaceVariant = Color(0xFF334155),
+    onSurfaceVariant = Color(0xFFCBD5E1)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = ImmersiveBlue,
+    primary = IndigoPrimary,
     onPrimary = Color.White,
-    primaryContainer = ImmersiveBlueLight,
-    onPrimaryContainer = ImmersiveBlueDark,
+    primaryContainer = IndigoLight,
+    onPrimaryContainer = IndigoDark,
     secondary = StateInOffice,
-    tertiary = StateWFH,
-    background = WhiteBackground,
-    surface = WhiteCard,
-    onBackground = TextPrimaryLight,
-    onSurface = TextPrimaryLight,
-    outline = WhiteBorder
+    surface = LightSurface,
+    background = LightBg,
+    onSurface = TextOnLight,
+    onBackground = TextOnLight,
+    surfaceVariant = Color(0xFFE2E8F0),
+    onSurfaceVariant = Color(0xFF475569)
 )
 
 @Composable
